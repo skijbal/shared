@@ -1,0 +1,26 @@
+---
+version: "2"
+services:
+ sonarr:
+    container_name: radarr
+    image: ghcr.io/hotio/radarr:latest
+    restart: "no"
+    #Uncomment the next two lines for "local" docker networking.
+    #networks:
+    #  - media
+    ports:
+      - 7878:7878
+    environment:
+      - TZ=America/Chicago
+      - PUID=1000
+      - PGID=1000
+      - UMASK=002
+      - PORT=7878
+    volumes:
+      - ./config:/config:rw
+      - /media:/media:rw
+
+#Uncomment the next three lines to use the network from above
+#networks:
+# media:
+#  external: true
