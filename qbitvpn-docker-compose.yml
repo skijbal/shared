@@ -1,0 +1,48 @@
+# This is a P2P demonstration stack template which has been tested to work well with AirVPN as of January 2025.
+# Use AirVPN's config generator to obtain your specific values (https://airvpn.org/generator). Make sure to specify your device.
+# Remember that the indentation of a Docker Compose file is important.
+
+services:
+  gluetun:
+    image: qmcgaw/gluetun:latest
+    container_name: gluetun
+    cap_add:
+     - NET_ADMIN
+    devices:
+     - /dev/net/tun:/dev/net/tun
+    environment:
+     - VPN_SERVICE_PROVIDER=airvpn
+     - VPN_TYPE=wireguard
+     - WIREGUARD_PUBLIC_KEY= # copy from config file
+     - WIREGUARD_PRIVATE_KEY= # copy from config file
+     - WIREGUARD_PRESHARED_KEY= # copy from config file
+     - WIREGUARD_ADDRESSES= # copy from config file
+     - SERVER_REGIONS=Europe # optional, comma seperated list, no spaces after commas, make sure it matches the config you created
+     - SERVER_COUNTRIES=Netherlands # optional, comma seperated list, no spaces after commas, make sure it matches the config you created
+     - FIREWALL_VPN_INPUT_PORTS=46420 # mandatory, the port number AirVPN forwarded for you (from pool #1) should appear here
+     - TZ=America/Chicago # choose timezone value from list at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones (e.g.: Asia/Tokyo)
+     - HEALTH_VPN_DURATION_INITIAL=120s
+    ports:
+     - 6500:6500 # qbittorrent web GUI, port number can be changed BUT it must match WEBUI_PORT in qbittorrent service environment
+     - 46420:46420 # also place in TORRENTING_PORT field in qbittorrent service environment
+    restart: unless-stopped
+
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    container_name: qbittorrent
+    depends_on:
+      gluetun:
+        condition: service_healthy
+        restart: true
+    environment:
+      - PUID=1000 # your desired user's number
+      - PGID=1000 # your desired user's group number
+      - TZ=America/Chicago # choose timezone value from list at https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+      - WEBUI_PORT=6500 # must match "qbittorrent web GUI" port number in gluetun's service above
+      - TORRENTING_PORT=46420 # must match forwarded port number in gluetun's service above
+    volumes:
+      - ./config:/config # directory you want to save your qbittorrent config files
+      - /media:/media # qbittorrent download location
+    restart: unless-stopped
+    network_mode: "service:gluetun" # this is what forces qbittorrent to only use the VPN connection from gluetun
